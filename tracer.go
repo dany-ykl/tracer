@@ -2,6 +2,7 @@ package tracer
 
 import (
 	"context"
+	"fmt"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -24,12 +25,14 @@ type Config struct {
 }
 
 func New(cfg *Config) (func(ctx context.Context), error) {
-	client := otlptracehttp.NewClient()
+	client := otlptracehttp.NewClient(
+		otlptracehttp.WithEndpoint(fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)),
+	)
+
 	exporter, err := otlptrace.New(context.Background(), client)
 	if err != nil {
 		return nil, err
 	}
-
 	traceProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(cfg.TraceRatioFraction)),
 		sdktrace.WithBatcher(exporter),
