@@ -3,6 +3,7 @@ package tracer
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -13,6 +14,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 	tr "go.opentelemetry.io/otel/trace"
 	"log"
+	"os"
 	"time"
 )
 
@@ -22,9 +24,16 @@ type Config struct {
 	Port               string
 	Environment        string
 	TraceRatioFraction float64
+
+	// OTELExporterOTLPEndpoint example: http://jaeger:4317
+	OTELExporterOTLPEndpoint string
 }
 
 func New(cfg *Config) (func(ctx context.Context), error) {
+	if err := os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", cfg.OTELExporterOTLPEndpoint); err != nil {
+		return func(ctx context.Context) {}, errors.Wrap(err, "fail to set env var otel exporter")
+	}
+
 	client := otlptracehttp.NewClient(
 		otlptracehttp.WithEndpoint(fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)),
 	)
@@ -51,7 +60,7 @@ func New(cfg *Config) (func(ctx context.Context), error) {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
 		if err := traceProvider.Shutdown(ctx); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 	}, nil
 }
